@@ -82,6 +82,12 @@ def index():
 @app.route('/play')
 def play():
     """Public route for the slideshow (read-only, for local display)."""
+    # Ensure feh is running for the local display if possible
+    try:
+        feh.start()
+    except:
+        pass
+        
     images = get_images()
     return render_template('index.html', images=images, mode='display')
 
