@@ -125,9 +125,11 @@ class FehController:
                     cmd = [
                         'feh',
                         '-F', '-Z', '-Y',      # Fullscreen, Zoom, Hide Pointer
+                        '-x',                  # Borderless
                         '-D', str(self.delay), # Slide Delay
                         '--reload', '2',       # Auto-reload
                         '--geometry', geometry, # Target specific monitor area
+                        '--auto-zoom',         # Zoom to screen size
                         self.image_folder
                     ]
 
