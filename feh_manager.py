@@ -4,12 +4,13 @@ import threading
 import time
 import shutil
 import platform
+import glob
 
 class FehController:
     def __init__(self, image_folder, delay=5):
         self.image_folder = image_folder
         self.delay = delay
-        self.process = None
+        self.processes = []  # Changed to list to handle multiple instances
         self.running = False
         self.thread = None
 
@@ -27,7 +28,6 @@ class FehController:
             return
 
         # Check if we are on a system that likely has a display
-        # (This is a rough check, mainly to avoid errors on headless servers or Windows dev environments)
         if platform.system() == 'Windows':
             print("Warning: 'feh' is a Linux application. It will not run on Windows.")
             return
@@ -38,82 +38,137 @@ class FehController:
         self.thread.daemon = True
         self.thread.start()
 
-    def _run_feh(self):
-        # Command arguments:
-        # -F: Fullscreen
-        # -Z: Zoom to fill screen
-        # -Y: Hide pointer
-        # -D: Slide delay
-        # --reload: Reload filelist every <delay> seconds (or just checking periodically)
-        # --auto-zoom: Zoom pictures to screen size
-        
-        # Note: --reload <int> checks directory for changes. 
-        # using 5 seconds for reload check as well.
-        
-        cmd = [
-            'feh',
-            '-F', '-Z', '-Y',
-            '-D', str(self.delay),
-            '--reload', '2',  # Check for new files every 2 seconds
-            self.image_folder
-        ]
+    def _get_connected_monitors(self):
+        """
+        Attempts to find connected monitors using xrandr.
+        Returns a list of monitor configurations (name, geometry).
+        Example: [('HDMI-1', '1920x1080+0+0'), ('HDMI-2', '1920x1080+1920+0')]
+        """
+        monitors = []
+        try:
+            # Run xrandr to list monitors
+            result = subprocess.run(['xrandr', '--listmonitors'], capture_output=True, text=True)
+            output = result.stdout.strip()
+            
+            # Parse output
+            # Format usually: 
+            # Monitors: 2
+            #  0: +*HDMI-1 1920/531x1080/299+0+0  HDMI-1
+            #  1: +HDMI-2 1920/531x1080/299+1920+0  HDMI-2
+            
+            for line in output.split('\n'):
+                if line.startswith('Monitors:'):
+                    continue
+                parts = line.split()
+                if len(parts) >= 3:
+                    # Depending on xrandr version, geometry is usually the 3rd item
+                    # e.g., "0: +*HDMI-1 1920/531x1080/299+0+0  HDMI-1"
+                    # We want the geometry string (e.g., 1920/531x1080/299+0+0)
+                    # And the name (last item)
+                    
+                    geometry = parts[2]
+                    # Clean geometry string (remove physical dimensions like /531)
+                    # 1920/531x1080/299+0+0 -> 1920x1080+0+0
+                    if '/' in geometry:
+                        width_height = geometry.split('+')[0] # 1920/531x1080/299
+                        w = width_height.split('x')[0].split('/')[0]
+                        h = width_height.split('x')[1].split('/')[0]
+                        offset = '+' + '+'.join(geometry.split('+')[1:])
+                        clean_geometry = f"{w}x{h}{offset}"
+                    else:
+                        clean_geometry = geometry
 
-        # Set DISPLAY environment variable to target the main display (Raspberry Pi default is :0)
+                    name = parts[-1]
+                    monitors.append({'name': name, 'geometry': clean_geometry})
+                    
+        except Exception as e:
+            print(f"Error detecting monitors: {e}")
+            # Fallback: Assume single monitor at +0+0 if detection fails
+            return [{'name': 'Default', 'geometry': '+0+0'}]
+
+        if not monitors:
+             return [{'name': 'Default', 'geometry': '+0+0'}]
+             
+        return monitors
+
+    def _run_feh(self):
+        # Set DISPLAY environment variable
         env = os.environ.copy()
-        
-        # Force DISPLAY to :0 if we are running on Linux to ensure it targets the main screen
-        # This is critical if the app is started via SSH or a system service
         if platform.system() == 'Linux':
             env['DISPLAY'] = ':0'
-            
-            # Try to locate .Xauthority to allow access to the display
-            # This is often needed when running as root or a different user
             if 'XAUTHORITY' not in env:
                 user_home = os.path.expanduser('~')
                 possible_auths = [
                     os.path.join(user_home, '.Xauthority'),
-                    '/home/pi/.Xauthority',  # Standard Pi user
-                    '/home/dietpi/.Xauthority', # DietPi user
+                    '/home/pi/.Xauthority',
+                    '/home/dietpi/.Xauthority',
                 ]
                 for auth in possible_auths:
                     if os.path.exists(auth):
                         env['XAUTHORITY'] = auth
                         break
 
+        # Detect monitors to launch instances for each
+        monitors = self._get_connected_monitors()
+        print(f"Detected monitors: {monitors}")
+
         try:
-            # Open a log file for stderr to capture feh errors
+            # Open log file
             with open('feh_error.log', 'a') as log_file:
-                log_file.write(f"\n--- Starting feh at {time.ctime()} ---\n")
-                log_file.write(f"Command: {' '.join(cmd)}\n")
-                log_file.write(f"Environment DISPLAY: {env.get('DISPLAY')}\n")
-                log_file.write(f"Environment XAUTHORITY: {env.get('XAUTHORITY')}\n")
+                log_file.write(f"\n--- Starting feh session at {time.ctime()} ---\n")
                 
-                self.process = subprocess.Popen(cmd, env=env, stderr=log_file, stdout=log_file)
-                self.process.wait()
+                # Launch one feh instance per monitor
+                for monitor in monitors:
+                    geometry = monitor['geometry']
+                    
+                    # Construct command for this specific monitor
+                    cmd = [
+                        'feh',
+                        '-F', '-Z', '-Y',      # Fullscreen, Zoom, Hide Pointer
+                        '-D', str(self.delay), # Slide Delay
+                        '--reload', '2',       # Auto-reload
+                        '--geometry', geometry, # Target specific monitor area
+                        self.image_folder
+                    ]
+
+                    log_file.write(f"Launching for {monitor['name']}: {' '.join(cmd)}\n")
+                    
+                    # Start process
+                    proc = subprocess.Popen(cmd, env=env, stderr=log_file, stdout=log_file)
+                    self.processes.append(proc)
+
+                # Wait for all processes (monitoring loop)
+                while self.running and any(p.poll() is None for p in self.processes):
+                    time.sleep(1)
+                    
         except Exception as e:
-            print(f"Error running feh: {e}")
+            print(f"Error running feh loop: {e}")
             with open('feh_error.log', 'a') as log_file:
                 log_file.write(f"Exception: {e}\n")
         finally:
-            self.running = False
-            self.process = None
+            self.stop() # Ensure cleanup if loop exits
 
     def stop(self):
-        # Force kill any existing feh processes to ensure clean state
-        # This is more robust than relying just on self.process
+        # Force kill any existing feh processes
         if platform.system() == 'Linux':
             try:
                 subprocess.run(['pkill', 'feh'], check=False)
             except Exception as e:
                 print(f"Error executing pkill: {e}")
 
-        if self.process and self.process.poll() is None:
-            print("Stopping feh (managed process)...")
-            self.process.terminate()
-            try:
-                self.process.wait(timeout=2)
-            except subprocess.TimeoutExpired:
-                self.process.kill()
+        # Clean up process objects
+        for p in self.processes:
+            if p.poll() is None:
+                try:
+                    p.terminate()
+                    p.wait(timeout=1)
+                except:
+                    try:
+                        p.kill()
+                    except:
+                        pass
+        
+        self.processes = []
         self.running = False
 
     def restart(self):
