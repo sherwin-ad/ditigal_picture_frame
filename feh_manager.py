@@ -99,8 +99,16 @@ class FehController:
             self.process = None
 
     def stop(self):
+        # Force kill any existing feh processes to ensure clean state
+        # This is more robust than relying just on self.process
+        if platform.system() == 'Linux':
+            try:
+                subprocess.run(['pkill', 'feh'], check=False)
+            except Exception as e:
+                print(f"Error executing pkill: {e}")
+
         if self.process and self.process.poll() is None:
-            print("Stopping feh...")
+            print("Stopping feh (managed process)...")
             self.process.terminate()
             try:
                 self.process.wait(timeout=2)
