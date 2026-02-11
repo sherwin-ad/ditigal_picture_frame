@@ -4,136 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Photo Gallery - Digital Picture Frame</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
-        body {
-            background-color: #000;
-            color: #fff;
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-        }
-        h1 {
-            text-align: center;
-        }
-        .gallery-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 15px;
-            padding: 20px;
-        }
-        .gallery-item {
-            position: relative;
-            overflow: hidden;
-            border-radius: 8px;
-            border: 2px solid #333;
-            background: #111;
-        }
-        .gallery-item.selected {
-            border-color: #ff4444;
-            box-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
-        }
-        .gallery-item img {
-            width: 100%;
-            height: 200px;
-            object-fit: cover;
-            display: block;
-            transition: transform 0.3s;
-            cursor: pointer;
-        }
-        .gallery-item:hover img {
-            transform: scale(1.05);
-        }
-        /* Selection Checkbox (Hidden, used for state) */
-        .select-checkbox {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            z-index: 10;
-            transform: scale(1.5);
-            cursor: pointer;
-            opacity: 0.7;
-        }
-        .select-checkbox:checked {
-            opacity: 1;
-        }
-        
-        .actions {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            background: rgba(0,0,0,0.7);
-            padding: 5px;
-            text-align: center;
-            opacity: 0;
-            transition: opacity 0.3s;
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-        }
-        .gallery-item:hover .actions {
-            opacity: 1;
-        }
-        .btn-action {
-            border: none;
-            padding: 5px 10px;
-            border-radius: 4px;
-            cursor: pointer;
-            text-decoration: none;
-            font-size: 12px;
-            color: white;
-        }
-        .delete-btn {
-            background-color: #ff4444;
-        }
-        .delete-btn:hover {
-            background-color: #cc0000;
-        }
-        .view-btn {
-            background-color: #4CAF50;
-        }
-        .view-btn:hover {
-            background-color: #45a049;
-        }
-
-        .top-nav {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0 20px;
-            background-color: #111;
-            border-bottom: 1px solid #333;
-            margin: -20px -20px 20px -20px;
-            padding: 15px 20px;
-        }
-        .bulk-actions {
-            margin-bottom: 20px;
-            padding: 10px;
-            background-color: #222;
-            border-radius: 4px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-        .btn {
-            background-color: #333;
-            color: white;
-            padding: 8px 15px;
-            text-decoration: none;
-            border-radius: 4px;
-            border: 1px solid #555;
-            cursor: pointer;
-        }
-        .btn:hover {
-            background-color: #555;
-        }
-        .btn-danger {
-            background-color: #d9534f;
-            border-color: #d43f3a;
-        }
-        .btn-danger:hover {
-            background-color: #c9302c;
-        }
+        body { font-family: 'Roboto', sans-serif; }
     </style>
     <script>
         function toggleSelection(imgName) {
@@ -161,7 +35,7 @@
             if (countSpan) countSpan.textContent = checkboxes.length;
             
             if (checkboxes.length > 0) {
-                bulkDeleteBtn.style.display = 'inline-block';
+                bulkDeleteBtn.style.display = 'inline-flex';
             } else {
                 bulkDeleteBtn.style.display = 'none';
             }
@@ -194,54 +68,63 @@
         }
     </script>
 </head>
-<body>
+<body class="gallery-layout">
 
     <div class="top-nav">
-        <a href="/" class="btn">← Back to Slideshow</a>
-        <h2>Photo Gallery ({{ images|length }})</h2>
-        <a href="/logout" class="btn" style="background-color: #d9534f; border-color: #d43f3a;">Logout</a>
+        <div style="display: flex; align-items: center; gap: 16px;">
+            <a href="/" class="btn">← Back</a>
+            <h1 class="nav-title" style="margin: 0;">Photo Gallery ({{ images|length }})</h1>
+        </div>
+        <a href="/logout" class="btn btn-danger">Logout</a>
     </div>
 
     {% with messages = get_flashed_messages() %}
       {% if messages %}
-        <div style="text-align: center; margin-bottom: 20px; color: #4CAF50;">
+        <div class="flash-message">
         {% for message in messages %}
-          <p>{{ message }}</p>
+          <span>{{ message }}</span>
         {% endfor %}
         </div>
       {% endif %}
     {% endwith %}
 
-    <div class="bulk-actions" style="display: flex; justify-content: space-between; align-items: center; background: #222; padding: 10px; margin-bottom: 10px; border-radius: 5px;">
-        <div style="display: flex; gap: 10px; align-items: center;">
-            <button onclick="selectAll()" class="btn">Select All</button>
-            <button onclick="deselectAll()" class="btn">Deselect All</button>
-            <span style="margin-left: 10px;">Selected: <span id="selected-count">0</span></span>
+    <div class="bulk-actions-bar">
+        <div style="display: flex; gap: 12px; align-items: center;">
+            <button onclick="selectAll()" class="btn btn-small">Select All</button>
+            <button onclick="deselectAll()" class="btn btn-small">Deselect All</button>
+            <span style="margin-left: 12px; color: var(--text-secondary); font-size: 14px;">
+                Selected: <strong id="selected-count" style="color: var(--text-primary);">0</strong>
+            </span>
         </div>
-        <button id="bulk-delete-btn" onclick="submitBulkDelete()" class="btn btn-danger" style="display: none; background-color: #d9534f; border: none; padding: 8px 15px; color: white; cursor: pointer; border-radius: 4px;">Delete Selected</button>
+        <button id="bulk-delete-btn" onclick="submitBulkDelete()" class="btn btn-danger-filled" style="display: none;">
+            Delete Selected
+        </button>
     </div>
 
-    <form id="gallery-form" action="/delete_bulk" method="POST">
-        <div class="gallery-container">
+    <form id="gallery-form" action="/delete_bulk" method="POST" style="flex: 1; overflow: hidden; display: flex;">
+        <div class="gallery-grid">
             {% for image in images %}
             <div class="gallery-item" id="item-{{ image }}">
-                <!-- Stop propagation on checkbox click so it doesn't trigger the image onclick immediately after -->
                 <input type="checkbox" class="select-checkbox" name="selected_files" value="{{ image }}" id="check-{{ image }}" onclick="event.stopPropagation(); updateBulkButtons();">
                 
-                <!-- Image click toggles selection -->
-                <img src="{{ url_for('static', filename='photos/' + image) }}" alt="{{ image }}" onclick="toggleSelection('{{ image }}')">
-                
-                <div class="actions">
-                    <a href="{{ url_for('static', filename='photos/' + image) }}" target="_blank" class="btn-action view-btn">View</a>
-                     <a href="/delete_single/{{ image }}" class="btn-action delete-btn" onclick="return confirm('Delete this photo?');">Delete</a>
+                <div style="position: relative; width: 100%; height: 100%;">
+                    <img src="{{ url_for('static', filename='photos/' + image) }}" alt="{{ image }}" onclick="toggleSelection('{{ image }}')" loading="lazy">
+                    
+                    <div class="item-actions">
+                        <a href="{{ url_for('static', filename='photos/' + image) }}" target="_blank" class="btn btn-small btn-primary" onclick="event.stopPropagation();">View</a>
+                        <a href="/delete_single/{{ image }}" class="btn btn-small btn-danger-filled" onclick="event.stopPropagation(); return confirm('Delete this photo?');">Delete</a>
+                    </div>
                 </div>
             </div>
             {% else %}
-            <p style="text-align: center; width: 100%;">No photos uploaded yet.</p>
+            <div class="empty-state" style="grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%;">
+                <div class="empty-icon" style="font-size: 64px; margin-bottom: 24px; opacity: 0.3;">🖼️</div>
+                <h2 style="color: var(--text-secondary); font-weight: 300;">No photos uploaded yet.</h2>
+                <a href="/" class="btn btn-primary" style="margin-top: 16px;">Go to Upload</a>
+            </div>
             {% endfor %}
         </div>
     </form>
-
 
 </body>
 </html>

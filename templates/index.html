@@ -4,118 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Digital Picture Frame</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <!-- Optional: Add Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
-        body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            background-color: #000;
-            overflow: hidden; /* Hide scrollbars */
-            font-family: Arial, sans-serif;
-        }
-
-        #slideshow-container {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify_content: center;
-            align-items: center;
-            z-index: 1;
-        }
-
-        .slide {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain; /* Maintain aspect ratio */
-            position: absolute;
-            opacity: 0;
-            transition: opacity 1s ease-in-out; /* Smooth fade effect */
-        }
-
-        .slide.active {
-            opacity: 1;
-        }
-
-        /* Controls / Upload Overlay */
-        #controls {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.5);
-            padding: 10px;
-            border-radius: 5px;
-            z-index: 100;
-            color: white;
-            opacity: 0; /* Hidden by default */
-            transition: opacity 0.3s;
-        }
-
-        /* Show controls on hover */
-        body:hover #controls {
-            opacity: 1;
-        }
-
-        /* Upload Form styling */
-        .btn-small {
-            background-color: #333;
-            color: white;
-            padding: 4px 8px;
-            border: 1px solid #555;
-            cursor: pointer;
-            border-radius: 4px;
-            text-decoration: none;
-            display: inline-block;
-            font-size: 11px;
-            margin-right: 2px;
-        }
-
-        .btn-small:hover {
-            background-color: #555;
-        }
-
-        .upload-btn {
-            background-color: #4CAF50;
-            color: white;
-            padding: 8px 12px;
-            border: none;
-            cursor: pointer;
-            border-radius: 4px;
-            text-decoration: none;
-            display: inline-block;
-            font-size: 14px;
-        }
-
-        .file-input {
-            display: none;
-        }
-
-        .custom-file-upload {
-            border: 1px solid #ccc;
-            display: inline-block;
-            padding: 6px 12px;
-            cursor: pointer;
-            background: #333;
-            color: white;
-            border-radius: 4px;
-        }
-
-        /* Messages */
-        #message-area {
-            position: absolute;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            padding: 10px 20px;
-            border-radius: 5px;
-            z-index: 200;
-            display: none; /* Hidden by default */
-        }
+        body { font-family: 'Roboto', sans-serif; }
     </style>
 </head>
 <body>
@@ -123,16 +16,19 @@
     <!-- Flash Messages -->
     {% with messages = get_flashed_messages() %}
       {% if messages %}
-        <div id="message-area" style="display: block;">
+        <div id="message-area" class="flash-message">
         {% for message in messages %}
-          <p>{{ message }}</p>
+          <span>{{ message }}</span>
         {% endfor %}
         </div>
         <script>
             setTimeout(function() {
                 var msg = document.getElementById('message-area');
-                if(msg) msg.style.display = 'none';
-            }, 5000);
+                if(msg) {
+                    msg.style.opacity = '0';
+                    setTimeout(() => msg.remove(), 500);
+                }
+            }, 4000);
         </script>
       {% endif %}
     {% endwith %}
@@ -144,7 +40,8 @@
                 <img src="{{ url_for('static', filename='photos/' + image) }}" class="slide {% if loop.first %}active{% endif %}" alt="Photo">
             {% endfor %}
         {% else %}
-            <div style="color: white; text-align: center;">
+            <div class="empty-state">
+                <div class="empty-icon">🖼️</div>
                 <h1>No photos found</h1>
                 <p>Upload some photos using the controls below (hover to see).</p>
             </div>
@@ -153,28 +50,36 @@
 
     <!-- Controls Overlay (Visible on Hover) -->
     <div id="controls" {% if mode == 'display' %}style="display: none !important;"{% endif %}>
-        <form action="/upload" method="post" enctype="multipart/form-data">
-            <label for="file-upload" class="custom-file-upload">
-                Choose Files
-            </label>
-            <input id="file-upload" class="file-input" type="file" name="files[]" multiple accept="image/*" onchange="this.form.submit()">
-        </form>
-        <div style="margin-top: 5px; font-size: 12px; text-align: right;">
-            {{ images|length }} Photos
-        </div>
-
-        <div style="margin-top: 10px; border-top: 1px solid #555; padding-top: 5px; font-size: 12px;">
-            <strong>Local Display (Feh):</strong><br>
-            <div style="margin-top: 5px;">
-                <a href="/control/feh/start" class="btn-small">Start</a>
-                <a href="/control/feh/stop" class="btn-small">Stop</a>
-                <a href="/control/feh/restart" class="btn-small">Restart</a>
+        
+        <div class="control-section">
+            <span class="control-label">Upload Photos</span>
+            <form action="/upload" method="post" enctype="multipart/form-data">
+                <label for="file-upload" class="custom-file-upload">
+                    <span>Click to Select Files</span>
+                </label>
+                <input id="file-upload" class="file-input" type="file" name="files[]" multiple accept="image/*" onchange="this.form.submit()" style="display: none;">
+            </form>
+            <div style="font-size: 12px; text-align: right; color: var(--text-secondary);">
+                {{ images|length }} Photos
             </div>
         </div>
 
-        <div style="margin-top: 10px; border-top: 1px solid #555; padding-top: 5px; font-size: 12px; text-align: right;">
-             <a href="/gallery" class="btn-small">View Gallery</a>
-             <a href="/logout" class="btn-small" style="background-color: #d9534f; border-color: #d43f3a;">Logout</a>
+        <div class="control-section">
+            <span class="control-label">Local Display (Feh)</span>
+            <div class="control-buttons">
+                <a href="/control/feh/start" class="btn btn-small btn-primary">Start</a>
+                <a href="/control/feh/stop" class="btn btn-small btn-danger">Stop</a>
+                <a href="/control/feh/restart" class="btn btn-small">Restart</a>
+                <a href="/view_local" target="_blank" class="btn btn-small" style="background-color: #2196F3; color: white;">View</a>
+            </div>
+        </div>
+
+        <div class="control-section" style="border-bottom: none;">
+            <span class="control-label">Navigation</span>
+             <div class="control-buttons" style="justify-content: space-between;">
+                 <a href="/gallery" class="btn btn-small">View Gallery</a>
+                 <a href="/logout" class="btn btn-small btn-danger">Logout</a>
+             </div>
         </div>
     </div>
 
