@@ -94,7 +94,8 @@ def get_images():
 @login_required
 def index():
     images = get_images()
-    return render_template('index.html', images=images, mode='admin')
+    settings = load_settings()
+    return render_template('index.html', images=images, mode='admin', slide_interval=settings.get('delay', 5)*1000)
 
 @app.route('/settings', methods=['GET', 'POST'])
 @login_required
