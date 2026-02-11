@@ -95,6 +95,11 @@ def gallery():
 @app.route('/delete/<filename>', methods=['POST'])
 @login_required
 def delete_file(filename):
+    return delete_single_file(filename)
+
+@app.route('/delete_single/<filename>', methods=['GET'])
+@login_required
+def delete_single_file(filename):
     if not allowed_file(filename):
          flash('Invalid file type')
          return redirect(url_for('gallery'))
@@ -109,6 +114,31 @@ def delete_file(filename):
     else:
         flash('File not found')
     
+    return redirect(url_for('gallery'))
+
+@app.route('/delete_bulk', methods=['POST'])
+@login_required
+def delete_bulk():
+    files_to_delete = request.form.getlist('selected_files')
+    
+    if not files_to_delete:
+        flash('No files selected for deletion.')
+        return redirect(url_for('gallery'))
+        
+    deleted_count = 0
+    errors = 0
+    
+    for filename in files_to_delete:
+        if allowed_file(filename):
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            if os.path.exists(file_path):
+                try:
+                    os.remove(file_path)
+                    deleted_count += 1
+                except:
+                    errors += 1
+    
+    flash(f'Deleted {deleted_count} files.' + (f' ({errors} errors)' if errors else ''))
     return redirect(url_for('gallery'))
 
 @app.route('/upload', methods=['POST'])
