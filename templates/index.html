@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Picture Frame</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            overflow: hidden; /* Hide scrollbars */
+            font-family: Arial, sans-serif;
+        }
+
+        #slideshow-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify_content: center;
+            align-items: center;
+            z-index: 1;
+        }
+
+        .slide {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain; /* Maintain aspect ratio */
+            position: absolute;
+            opacity: 0;
+            transition: opacity 1s ease-in-out; /* Smooth fade effect */
+        }
+
+        .slide.active {
+            opacity: 1;
+        }
+
+        /* Controls / Upload Overlay */
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 100;
+            color: white;
+            opacity: 0; /* Hidden by default */
+            transition: opacity 0.3s;
+        }
+
+        /* Show controls on hover */
+        body:hover #controls {
+            opacity: 1;
+        }
+
+        /* Upload Form styling */
+        .upload-btn {
+            background-color: #4CAF50;
+            color: white;
+            padding: 8px 12px;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 14px;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .custom-file-upload {
+            border: 1px solid #ccc;
+            display: inline-block;
+            padding: 6px 12px;
+            cursor: pointer;
+            background: #333;
+            color: white;
+            border-radius: 4px;
+        }
+
+        /* Messages */
+        #message-area {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            z-index: 200;
+            display: none; /* Hidden by default */
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div id="message-area" style="display: block;">
+        {% for message in messages %}
+          <p>{{ message }}</p>
+        {% endfor %}
+        </div>
+        <script>
+            setTimeout(function() {
+                var msg = document.getElementById('message-area');
+                if(msg) msg.style.display = 'none';
+            }, 5000);
+        </script>
+      {% endif %}
+    {% endwith %}
+
+    <div id="slideshow-container">
+        <!-- Images will be injected here via JS or rendered server-side -->
+        {% if images %}
+            {% for image in images %}
+                <img src="{{ url_for('static', filename='photos/' + image) }}" class="slide {% if loop.first %}active{% endif %}" alt="Photo">
+            {% endfor %}
+        {% else %}
+            <div style="color: white; text-align: center;">
+                <h1>No photos found</h1>
+                <p>Upload some photos using the controls below (hover to see).</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Controls Overlay (Visible on Hover) -->
+    <div id="controls">
+        <form action="/upload" method="post" enctype="multipart/form-data">
+            <label for="file-upload" class="custom-file-upload">
+                Choose Files
+            </label>
+            <input id="file-upload" class="file-input" type="file" name="files[]" multiple accept="image/*" onchange="this.form.submit()">
+        </form>
+        <div style="margin-top: 5px; font-size: 12px; text-align: right;">
+            {{ images|length }} Photos
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const slides = document.querySelectorAll('.slide');
+            let currentSlide = 0;
+            const slideInterval = 5000; // 5 seconds per slide
+
+            if (slides.length > 1) {
+                setInterval(nextSlide, slideInterval);
+            }
+
+            function nextSlide() {
+                // Remove 'active' class from current slide
+                slides[currentSlide].classList.remove('active');
+                
+                // Calculate next slide index
+                currentSlide = (currentSlide + 1) % slides.length;
+                
+                // Add 'active' class to next slide
+                slides[currentSlide].classList.add('active');
+            }
+        });
+    </script>
+</body>
+</html>
