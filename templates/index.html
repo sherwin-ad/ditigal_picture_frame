@@ -152,7 +152,7 @@
     </div>
 
     <!-- Controls Overlay (Visible on Hover) -->
-    <div id="controls">
+    <div id="controls" {% if mode == 'display' %}style="display: none !important;"{% endif %}>
         <form action="/upload" method="post" enctype="multipart/form-data">
             <label for="file-upload" class="custom-file-upload">
                 Choose Files
@@ -173,6 +173,7 @@
         </div>
 
         <div style="margin-top: 10px; border-top: 1px solid #555; padding-top: 5px; font-size: 12px; text-align: right;">
+             <a href="/gallery" class="btn-small">View Gallery</a>
              <a href="/logout" class="btn-small" style="background-color: #d9534f; border-color: #d43f3a;">Logout</a>
         </div>
     </div>

@@ -1,5 +1,7 @@
 
 import os
+import threading
+import webbrowser
 from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from werkzeug.utils import secure_filename
@@ -25,6 +27,10 @@ try:
     feh.start()
 except Exception as e:
     print(f"Could not start feh automatically: {e}")
+
+def open_browser():
+    """Open the slideshow in the default web browser after a short delay."""
+    webbrowser.open('http://localhost:5000/play')
 
 def allowed_file(filename):
     return '.' in filename and \
@@ -58,20 +64,52 @@ def logout():
     flash('Logged out.')
     return redirect(url_for('login'))
 
-@app.route('/')
-@login_required
-def index():
+def get_images():
     images = []
-    # Scan the upload folder for images
     if os.path.exists(app.config['UPLOAD_FOLDER']):
         for filename in os.listdir(app.config['UPLOAD_FOLDER']):
             if allowed_file(filename):
                 images.append(filename)
-    
-    # Sort images to have consistent order, or shuffle if desired (for now, sort)
     images.sort()
+    return images
+
+@app.route('/')
+@login_required
+def index():
+    images = get_images()
+    return render_template('index.html', images=images, mode='admin')
+
+@app.route('/play')
+def play():
+    """Public route for the slideshow (read-only, for local display)."""
+    images = get_images()
+    return render_template('index.html', images=images, mode='display')
+
+@app.route('/gallery')
+@login_required
+def gallery():
+    images = get_images()
+    return render_template('gallery.html', images=images)
+
+
+@app.route('/delete/<filename>', methods=['POST'])
+@login_required
+def delete_file(filename):
+    if not allowed_file(filename):
+         flash('Invalid file type')
+         return redirect(url_for('gallery'))
+
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    if os.path.exists(file_path):
+        try:
+            os.remove(file_path)
+            flash(f'Deleted {filename}')
+        except Exception as e:
+            flash(f'Error deleting file: {e}')
+    else:
+        flash('File not found')
     
-    return render_template('index.html', images=images)
+    return redirect(url_for('gallery'))
 
 @app.route('/upload', methods=['POST'])
 @login_required
@@ -118,5 +156,9 @@ def control_feh(action):
     return redirect(url_for('index'))
 
 if __name__ == '__main__':
+    # Open browser on startup (delayed to allow server to start)
+    if os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
+        threading.Timer(1.5, open_browser).start()
+    
     # Run on 0.0.0.0 to be accessible on the local network
     app.run(host='0.0.0.0', port=5000, debug=True)
