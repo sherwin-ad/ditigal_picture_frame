@@ -11,7 +11,7 @@ app = Flask(__name__)
 app.secret_key = "supersecretkey"  # Required for flashing messages
 
 # Configuration
-UPLOAD_FOLDER = os.path.join('static', 'photos')
+UPLOAD_FOLDER = os.path.join(os.getcwd(), 'static', 'photos')
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 ADMIN_PASSWORD = 'admin'  # Set your desired password here
 
@@ -84,12 +84,20 @@ def play():
     """Public route for the slideshow (read-only, for local display)."""
     # Ensure feh is running for the local display if possible
     try:
-        feh.start()
+        if not feh.running:
+            feh.start()
     except:
         pass
         
     images = get_images()
     return render_template('index.html', images=images, mode='display')
+
+@app.route('/view_local')
+@login_required
+def view_local():
+    """Redirect to the local slideshow view in a new tab."""
+    return redirect(url_for('play'))
+
 
 @app.route('/gallery')
 @login_required
@@ -180,13 +188,17 @@ def upload_file():
 def control_feh(action):
     if action == 'start':
         feh.start()
-        flash('Started local slideshow (feh)')
+        # Also attempt to open the browser slideshow on the server
+        threading.Thread(target=open_browser).start()
+        flash('Started local slideshow (feh & browser)')
     elif action == 'stop':
         feh.stop()
         flash('Stopped local slideshow (feh)')
     elif action == 'restart':
         feh.restart()
-        flash('Restarted local slideshow (feh)')
+        # Also attempt to open the browser slideshow on the server
+        threading.Thread(target=open_browser).start()
+        flash('Restarted local slideshow (feh & browser)')
     else:
         flash(f'Unknown action: {action}')
     return redirect(url_for('index'))

@@ -58,16 +58,42 @@ class FehController:
             self.image_folder
         ]
 
-        # Set DISPLAY environment variable if not set (common issue when running from services/SSH)
+        # Set DISPLAY environment variable to target the main display (Raspberry Pi default is :0)
         env = os.environ.copy()
-        if 'DISPLAY' not in env:
+        
+        # Force DISPLAY to :0 if we are running on Linux to ensure it targets the main screen
+        # This is critical if the app is started via SSH or a system service
+        if platform.system() == 'Linux':
             env['DISPLAY'] = ':0'
+            
+            # Try to locate .Xauthority to allow access to the display
+            # This is often needed when running as root or a different user
+            if 'XAUTHORITY' not in env:
+                user_home = os.path.expanduser('~')
+                possible_auths = [
+                    os.path.join(user_home, '.Xauthority'),
+                    '/home/pi/.Xauthority',  # Standard Pi user
+                    '/home/dietpi/.Xauthority', # DietPi user
+                ]
+                for auth in possible_auths:
+                    if os.path.exists(auth):
+                        env['XAUTHORITY'] = auth
+                        break
 
         try:
-            self.process = subprocess.Popen(cmd, env=env)
-            self.process.wait()
+            # Open a log file for stderr to capture feh errors
+            with open('feh_error.log', 'a') as log_file:
+                log_file.write(f"\n--- Starting feh at {time.ctime()} ---\n")
+                log_file.write(f"Command: {' '.join(cmd)}\n")
+                log_file.write(f"Environment DISPLAY: {env.get('DISPLAY')}\n")
+                log_file.write(f"Environment XAUTHORITY: {env.get('XAUTHORITY')}\n")
+                
+                self.process = subprocess.Popen(cmd, env=env, stderr=log_file, stdout=log_file)
+                self.process.wait()
         except Exception as e:
             print(f"Error running feh: {e}")
+            with open('feh_error.log', 'a') as log_file:
+                log_file.write(f"Exception: {e}\n")
         finally:
             self.running = False
             self.process = None
