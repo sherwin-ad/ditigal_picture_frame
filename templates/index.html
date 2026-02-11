@@ -60,6 +60,23 @@
         }
 
         /* Upload Form styling */
+        .btn-small {
+            background-color: #333;
+            color: white;
+            padding: 4px 8px;
+            border: 1px solid #555;
+            cursor: pointer;
+            border-radius: 4px;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 11px;
+            margin-right: 2px;
+        }
+
+        .btn-small:hover {
+            background-color: #555;
+        }
+
         .upload-btn {
             background-color: #4CAF50;
             color: white;
@@ -144,6 +161,19 @@
         </form>
         <div style="margin-top: 5px; font-size: 12px; text-align: right;">
             {{ images|length }} Photos
+        </div>
+
+        <div style="margin-top: 10px; border-top: 1px solid #555; padding-top: 5px; font-size: 12px;">
+            <strong>Local Display (Feh):</strong><br>
+            <div style="margin-top: 5px;">
+                <a href="/control/feh/start" class="btn-small">Start</a>
+                <a href="/control/feh/stop" class="btn-small">Stop</a>
+                <a href="/control/feh/restart" class="btn-small">Restart</a>
+            </div>
+        </div>
+
+        <div style="margin-top: 10px; border-top: 1px solid #555; padding-top: 5px; font-size: 12px; text-align: right;">
+             <a href="/logout" class="btn-small" style="background-color: #d9534f; border-color: #d43f3a;">Logout</a>
         </div>
     </div>
 
