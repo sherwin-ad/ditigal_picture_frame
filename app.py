@@ -2,6 +2,7 @@
 import os
 import threading
 import webbrowser
+import json
 from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from werkzeug.utils import secure_filename
@@ -14,14 +15,30 @@ app.secret_key = "supersecretkey"  # Required for flashing messages
 UPLOAD_FOLDER = os.path.join(os.getcwd(), 'static', 'photos')
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 ADMIN_PASSWORD = 'admin'  # Set your desired password here
+SETTINGS_FILE = 'settings.json'
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['ADMIN_PASSWORD'] = ADMIN_PASSWORD
 # Ensure the upload folder exists
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
+def load_settings():
+    if os.path.exists(SETTINGS_FILE):
+        try:
+            with open(SETTINGS_FILE, 'r') as f:
+                return json.load(f)
+        except:
+            pass
+    return {"delay": 5, "randomize": False, "show_filename": False}
+
+def save_settings(settings):
+    with open(SETTINGS_FILE, 'w') as f:
+        json.dump(settings, f, indent=4)
+
 # Initialize FehController
 feh = FehController(app.config['UPLOAD_FOLDER'])
+feh.update_settings(load_settings())
+
 # Try to start the slideshow on launch (will only work on Linux with display)
 try:
     feh.start()
@@ -79,6 +96,23 @@ def index():
     images = get_images()
     return render_template('index.html', images=images, mode='admin')
 
+@app.route('/settings', methods=['GET', 'POST'])
+@login_required
+def settings():
+    if request.method == 'POST':
+        new_settings = {
+            "delay": int(request.form.get('delay', 5)),
+            "randomize": 'randomize' in request.form,
+            "show_filename": 'show_filename' in request.form
+        }
+        save_settings(new_settings)
+        feh.update_settings(new_settings)
+        flash('Settings updated. Restarting slideshow...')
+        return redirect(url_for('settings'))
+    
+    current = load_settings()
+    return render_template('settings.html', settings=current)
+
 @app.route('/play')
 def play():
     """Public route for the slideshow (read-only, for local display)."""
@@ -90,7 +124,9 @@ def play():
         pass
         
     images = get_images()
-    return render_template('index.html', images=images, mode='display')
+    settings = load_settings()
+    # Pass delay to template if JS uses it
+    return render_template('index.html', images=images, mode='display', slide_interval=settings.get('delay', 5)*1000)
 
 @app.route('/view_local')
 @login_required

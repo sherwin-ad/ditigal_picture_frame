@@ -70,7 +70,6 @@
                 <a href="/control/feh/start" class="btn btn-small btn-primary">Start</a>
                 <a href="/control/feh/stop" class="btn btn-small btn-danger">Stop</a>
                 <a href="/control/feh/restart" class="btn btn-small">Restart</a>
-                <a href="/view_local" target="_blank" class="btn btn-small" style="background-color: #2196F3; color: white;">View</a>
             </div>
         </div>
 
@@ -78,6 +77,7 @@
             <span class="control-label">Navigation</span>
              <div class="control-buttons" style="justify-content: space-between;">
                  <a href="/gallery" class="btn btn-small">View Gallery</a>
+                 <a href="/settings" class="btn btn-small">Settings</a>
                  <a href="/logout" class="btn btn-small btn-danger">Logout</a>
              </div>
         </div>
@@ -87,7 +87,8 @@
         document.addEventListener("DOMContentLoaded", function() {
             const slides = document.querySelectorAll('.slide');
             let currentSlide = 0;
-            const slideInterval = 5000; // 5 seconds per slide
+            // Use server-side setting if available, otherwise default to 5000ms
+            const slideInterval = {{ slide_interval|default(5000) }}; 
 
             if (slides.length > 1) {
                 setInterval(nextSlide, slideInterval);

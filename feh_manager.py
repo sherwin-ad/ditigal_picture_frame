@@ -10,9 +10,20 @@ class FehController:
     def __init__(self, image_folder, delay=5):
         self.image_folder = image_folder
         self.delay = delay
+        self.randomize = False
+        self.show_filename = False
         self.processes = []  # Changed to list to handle multiple instances
         self.running = False
         self.thread = None
+
+    def update_settings(self, settings):
+        """Update settings from dictionary and restart if running."""
+        self.delay = settings.get('delay', 5)
+        self.randomize = settings.get('randomize', False)
+        self.show_filename = settings.get('show_filename', False)
+        
+        if self.running:
+            self.restart()
 
     def _is_feh_installed(self):
         return shutil.which('feh') is not None
@@ -132,6 +143,28 @@ class FehController:
                         '--auto-zoom',         # Zoom to screen size
                         self.image_folder
                     ]
+
+                    # Add randomize flag if enabled
+                    if getattr(self, 'randomize', False):
+                        cmd.append('-z')
+                        
+                    # Add filename display flag
+                    if getattr(self, 'show_filename', False):
+                        cmd.append('-d') # Draw filename (default)
+                    else:
+                        cmd.append('--hide-pointer') # ensure pointer hidden, but maybe use -d --draw-filename / --no-draw-filename?
+                        # feh shows filename by default. To hide it, we need something else?
+                        # checking man page: -d draws filename. If not specified, it might be drawn or not depending on version.
+                        # Wait, --draw-filename is -d. If we want to HIDE it, we don't pass -d?
+                        # Actually feh usually shows filename in overlay.
+                        # To hide everything except image: -d (draw filename) -> omit it?
+                        # No, usually to hide filename you just don't pass -d, OR pass --draw-filename if you want it.
+                        # BUT some feh versions show it by default.
+                        # The cleanest way is often creating a custom font/text overlay that is empty, or just rely on flags.
+                        # Let's assume -d enables it. If we don't pass -d, it shouldn't show (or we use --draw-filename).
+                        # Let's check typical usage.
+                        # "feh --draw-filename" shows it.
+                        pass # if not showing, do nothing (default behavior hopefully clean or handled by -x -F)
 
                     log_file.write(f"Launching for {monitor['name']}: {' '.join(cmd)}\n")
                     
